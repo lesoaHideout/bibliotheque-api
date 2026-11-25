@@ -1,0 +1,691 @@
+openapi: 3.0.3
+info:
+  title: API Bibliothèque Universitaire
+  version: 1.0.0
+  description: |
+    Gestion des livres, membres, catégories et emprunts d'une bibliothèque universitaire.
+
+    **Règles métier**
+    - Un livre n'est empruntable que s'il reste au moins un exemplaire disponible.
+    - Quota : 3 emprunts simultanés pour un étudiant, 6 pour un enseignant.
+    - Les retards sont calculés automatiquement (`jours_retard`).
+    - Un livre ou un membre ayant des emprunts en cours ne peut pas être supprimé.
+    - Le retour d'un livre remet un exemplaire en disponibilité.
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Catégories
+  - name: Livres
+  - name: Membres
+  - name: Emprunts
+  - name: Rapports
+
+paths:
+  /categories:
+    get:
+      tags: [Catégories]
+      summary: Lister les catégories
+      responses:
+        '200':
+          description: Liste des catégories
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Categorie' } }
+    post:
+      tags: [Catégories]
+      summary: Créer une catégorie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategorieInput' }
+      responses:
+        '201':
+          description: Catégorie créée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Categorie' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /categories/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Catégories]
+      summary: Détail d'une catégorie
+      responses:
+        '200':
+          description: Catégorie
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Categorie' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Catégories]
+      summary: Modifier une catégorie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategorieInput' }
+      responses:
+        '200':
+          description: Catégorie modifiée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Categorie' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Catégories]
+      summary: Supprimer une catégorie (refusé si elle contient des livres)
+      responses:
+        '204': { description: Supprimée }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /livres:
+    get:
+      tags: [Livres]
+      summary: Lister / rechercher les livres
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Recherche sur titre, auteur ou ISBN }
+        - { name: categorie_id, in: query, schema: { type: integer } }
+        - { name: disponible, in: query, schema: { type: boolean }, description: Si true, uniquement les livres avec exemplaire disponible }
+      responses:
+        '200':
+          description: Liste des livres
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Livre' } }
+    post:
+      tags: [Livres]
+      summary: Créer un livre
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivreInput' }
+      responses:
+        '201':
+          description: Livre créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Livre' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /livres/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Livres]
+      summary: Détail d'un livre
+      responses:
+        '200':
+          description: Livre
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Livre' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Livres]
+      summary: Modifier un livre
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LivreInput' }
+      responses:
+        '200':
+          description: Livre modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Livre' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Livres]
+      summary: Supprimer un livre (refusé si des emprunts sont en cours)
+      responses:
+        '204': { description: Supprimé }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /membres:
+    get:
+      tags: [Membres]
+      summary: Lister les membres
+      parameters:
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/TypeMembre' } }
+      responses:
+        '200':
+          description: Liste des membres
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Membre' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Membres]
+      summary: Créer un membre
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MembreInput' }
+      responses:
+        '201':
+          description: Membre créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Membre' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /membres/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Membres]
+      summary: Détail d'un membre (avec nombre d'emprunts en cours et limite)
+      responses:
+        '200':
+          description: Membre
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MembreDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Membres]
+      summary: Modifier un membre
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MembreInput' }
+      responses:
+        '200':
+          description: Membre modifié
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Membre' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Membres]
+      summary: Supprimer un membre (refusé si des emprunts sont en cours)
+      responses:
+        '204': { description: Supprimé }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /membres/{id}/historique:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Rapports]
+      summary: Historique complet des emprunts d'un membre
+      responses:
+        '200':
+          description: Historique
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Historique' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /emprunts:
+    get:
+      tags: [Emprunts]
+      summary: Lister les emprunts
+      parameters:
+        - name: statut
+          in: query
+          schema: { type: string, enum: [en_cours, retourne, en_retard] }
+        - { name: membre_id, in: query, schema: { type: integer } }
+        - { name: livre_id, in: query, schema: { type: integer } }
+      responses:
+        '200':
+          description: Liste des emprunts
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Emprunt' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [Emprunts]
+      summary: Enregistrer un emprunt
+      description: |
+        Refuse l'emprunt (409) si aucun exemplaire n'est disponible ou si le quota du membre est atteint.
+        Durée par défaut : 14 jours.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmpruntInput' }
+      responses:
+        '201':
+          description: Emprunt créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Emprunt' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /emprunts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Emprunts]
+      summary: Détail d'un emprunt
+      responses:
+        '200':
+          description: Emprunt
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Emprunt' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /emprunts/{id}/retour:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Emprunts]
+      summary: Enregistrer le retour d'un livre (remet un exemplaire en disponibilité)
+      responses:
+        '200':
+          description: Emprunt clôturé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Emprunt' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /rapports/top-livres:
+    get:
+      tags: [Rapports]
+      summary: Top des livres les plus empruntés
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+      responses:
+        '200':
+          description: Classement
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/TopLivre' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /rapports/emprunts-en-retard:
+    get:
+      tags: [Rapports]
+      summary: Emprunts en retard avec le nom du membre
+      responses:
+        '200':
+          description: Emprunts en retard
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Emprunt' } }
+  /rapports/emprunts-par-categorie:
+    get:
+      tags: [Rapports]
+      summary: Nombre d'emprunts par catégorie
+      responses:
+        '200':
+          description: Statistiques
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StatCategorie' } }
+   /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Créer un compte (retourne un JWT)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthRequest' }
+      responses:
+        '201': { description: Compte créé, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        '409': { description: Email déjà utilisé, content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } } }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Se connecter (retourne un JWT)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AuthRequest' }
+      responses:
+        '200': { description: Connecté, content: { application/json: { schema: { $ref: '#/components/schemas/AuthResponse' } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+
+  /api/v1/books/{id}/summary:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [IA]
+      summary: Générer et sauvegarder le résumé d'un livre via OpenAI
+      description: Si un résumé existe déjà, il est retourné sans nouvel appel à OpenAI (champ `message`).
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Résumé généré ou existant, content: { application/json: { schema: { $ref: '#/components/schemas/SummaryResponse' } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+    get:
+      tags: [IA]
+      summary: Retourner le résumé existant d'un livre
+      responses:
+        '200': { description: Résumé, content: { application/json: { schema: { $ref: '#/components/schemas/SummaryResponse' } } } }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+  /api/v1/books/{id}/summary/stream:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [IA]
+      summary: Résumé en streaming SSE (bonus)
+      description: Événements `delta` (texte), `done` (métadonnées) et `error`.
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Flux SSE, content: { text/event-stream: { schema: { type: string } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+  /api/v1/books/smart-search:
+    post:
+      tags: [IA]
+      summary: Recherche par description naturelle (mots-clés extraits par OpenAI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string, example: un livre sur les bonnes pratiques de programmation en Java }
+      responses:
+        '200': { description: Résultats, content: { application/json: { schema: { $ref: '#/components/schemas/SmartSearchResponse' } } } }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+
+  /api/v1/subscriptions/payment-intent:
+    post:
+      tags: [Abonnements]
+      summary: Créer un PaymentIntent Stripe (abonnement premium, 5 EUR)
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: PaymentIntent créé, content: { application/json: { schema: { $ref: '#/components/schemas/PaymentIntentResponse' } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '409': { description: Déjà premium, content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } } }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+  /api/v1/subscriptions/status:
+    get:
+      tags: [Abonnements]
+      summary: Statut d'abonnement de l'utilisateur connecté
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Statut, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionStatusResponse' } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '404': { $ref: '#/components/responses/ApiNotFound' }
+        '422': { $ref: '#/components/responses/ApiUnprocessable' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+  /api/v1/webhooks/stripe:
+    post:
+      tags: [Webhooks]
+      summary: Réception des événements Stripe (authentification par signature, pas de JWT)
+      description: |
+        Vérifie l'en-tête `Stripe-Signature` (HMAC-SHA256 avec STRIPE_WEBHOOK_SECRET).
+        Sur `payment_intent.succeeded` avec metadata `{user_id, plan: premium}`, l'utilisateur passe en premium.
+      security: []
+      parameters:
+        - { name: Stripe-Signature, in: header, required: true, schema: { type: string }, example: 't=1700000000,v1=abc123...' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type: { type: string, example: payment_intent.succeeded }
+                data:
+                  type: object
+                  properties:
+                    object:
+                      type: object
+                      properties:
+                        id: { type: string, example: pi_3Px }
+                        amount: { type: integer, example: 500 }
+                        metadata:
+                          type: object
+                          properties:
+                            user_id: { type: string, example: '42' }
+                            plan: { type: string, example: premium }
+      responses:
+        '200': { description: Événement reçu, content: { application/json: { schema: { type: object, properties: { received: { type: boolean, example: true } } } } } }
+        '401': { $ref: '#/components/responses/ApiUnauthorized' }
+        '503': { $ref: '#/components/responses/ApiUnavailable' }
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+  responses:
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+    Conflict:
+      description: Conflit avec une règle métier ou une contrainte d'unicité
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erreur' }
+  schemas:
+    Erreur:
+      type: object
+      properties:
+        erreur: { type: string, example: Aucun exemplaire disponible pour ce livre }
+    TypeMembre:
+      type: string
+      enum: [etudiant, enseignant]
+    CategorieInput:
+      type: object
+      required: [nom]
+      properties:
+        nom: { type: string, example: Informatique }
+    Categorie:
+      allOf:
+        - $ref: '#/components/schemas/CategorieInput'
+        - type: object
+          properties:
+            id: { type: integer, example: 1 }
+    LivreInput:
+      type: object
+      required: [titre, auteur, isbn, annee, exemplaires_total, categorie_id]
+      properties:
+        titre: { type: string, example: Clean Code }
+        auteur: { type: string, example: Robert C. Martin }
+        isbn: { type: string, example: 978-0132350884 }
+        annee: { type: integer, example: 2008 }
+        exemplaires_total: { type: integer, minimum: 0, example: 3 }
+        categorie_id: { type: integer, example: 1 }
+    Livre:
+      allOf:
+        - $ref: '#/components/schemas/LivreInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            exemplaires_disponibles: { type: integer, example: 2 }
+            categorie_nom: { type: string, example: Informatique }
+    MembreInput:
+      type: object
+      required: [nom, email, type]
+      properties:
+        nom: { type: string, example: Rakoto Jean }
+        email: { type: string, format: email, example: jean.rakoto@univ.mg }
+        type: { $ref: '#/components/schemas/TypeMembre' }
+    Membre:
+      allOf:
+        - $ref: '#/components/schemas/MembreInput'
+        - type: object
+          properties:
+            id: { type: integer }
+    MembreDetail:
+      allOf:
+        - $ref: '#/components/schemas/Membre'
+        - type: object
+          properties:
+            emprunts_en_cours: { type: integer }
+            limite: { type: integer, description: 3 pour un étudiant, 6 pour un enseignant }
+    EmpruntInput:
+      type: object
+      required: [membre_id, livre_id]
+      properties:
+        membre_id: { type: integer, example: 1 }
+        livre_id: { type: integer, example: 1 }
+        date_emprunt:
+          type: string
+          format: date
+          description: Optionnel (défaut = aujourd'hui). Utile pour simuler un retard.
+        duree_jours:
+          type: integer
+          minimum: 1
+          maximum: 90
+          default: 14
+    Emprunt:
+      type: object
+      properties:
+        id: { type: integer }
+        membre_id: { type: integer }
+        membre_nom: { type: string }
+        livre_id: { type: integer }
+        livre_titre: { type: string }
+        date_emprunt: { type: string, format: date }
+        date_retour_prevue: { type: string, format: date }
+        date_retour_reelle: { type: string, format: date, nullable: true }
+        statut: { type: string, enum: [en_cours, retourne] }
+        jours_retard:
+          type: integer
+          description: Nombre de jours de retard calculé automatiquement (0 si aucun)
+    Historique:
+      type: object
+      properties:
+        membre: { $ref: '#/components/schemas/Membre' }
+        total_emprunts: { type: integer }
+        en_cours: { type: integer }
+        avec_retard: { type: integer }
+        emprunts: { type: array, items: { $ref: '#/components/schemas/Emprunt' } }
+    TopLivre:
+      type: object
+      properties:
+        id: { type: integer }
+        titre: { type: string }
+        auteur: { type: string }
+        categorie_nom: { type: string }
+        nb_emprunts: { type: integer }
+    StatCategorie:
+      type: object
+      properties:
+        categorie_id: { type: integer }
+        categorie_nom: { type: string }
+        nb_emprunts: { type: integer }
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ApiUnauthorized:
+      description: Non authentifié, token ou signature invalide
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } }
+    ApiNotFound:
+      description: Ressource introuvable
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } }
+    ApiUnprocessable:
+      description: Données invalides
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } }
+    ApiUnavailable:
+      description: Service tiers (OpenAI, Stripe) indisponible ou non configuré
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiErreur' } } }
+  schemas:
+    ApiErreur:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        name: { type: string, description: Obligatoire pour register }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 6 }
+    AuthResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            token: { type: string }
+            user: { type: object, properties: { id: { type: integer }, name: { type: string }, email: { type: string }, subscription_status: { type: string, enum: [free, premium] } } }
+    SummaryResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            book_id: { type: integer, example: 1 }
+            title: { type: string, example: Clean Code }
+            summary: { type: string }
+            generated_by: { type: string, example: gpt-4o-mini }
+            generated_at: { type: string, format: date-time }
+        message: { type: string, example: Résumé existant retourné (pas de nouvel appel API) }
+    SmartSearchResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        query: { type: string }
+        keywords: { type: array, items: { type: string } }
+        data: { type: array, items: { $ref: '#/components/schemas/Livre' } }
+    PaymentIntentResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            client_secret: { type: string, example: pi_3Px_secret_abc }
+            amount: { type: integer, example: 500 }
+            currency: { type: string, example: eur }
+            publishable_key: { type: string, example: pk_test_... }
+    SubscriptionStatusResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            user_id: { type: integer }
+            subscription_status: { type: string, enum: [free, premium] }
+            max_active_borrows: { type: integer, nullable: true, description: 2 en free, null (illimité) en premium }
+            active_borrows: { type: integer }

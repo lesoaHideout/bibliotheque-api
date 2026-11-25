@@ -1,0 +1,393 @@
+{
+  "info": {
+    "name": "API Bibliothèque Universitaire",
+    "description": "Scénario de test complet : CRUD, règles métier (stock, quotas, retards, suppressions, retour) et rapports. À exécuter dans l'ordre avec le Collection Runner.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "00 - Santé de l'API",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "pm.test('status = ok', () => pm.expect(pm.response.json().status).to.eql('ok'));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/" }
+    },
+    {
+      "name": "01 - Créer une catégorie",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "const j = pm.response.json();",
+        "pm.test('Catégorie avec id', () => pm.expect(j.id).to.be.a('number'));",
+        "pm.collectionVariables.set('categorieId', j.id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"nom\": \"Informatique {{$timestamp}}\"}" },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "02 - Catégorie sans nom (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 400', () => pm.response.to.have.status(400));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/categories"
+      }
+    },
+    {
+      "name": "03 - Créer livre A (1 seul exemplaire)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "const j = pm.response.json();",
+        "pm.test('1 exemplaire disponible', () => pm.expect(j.exemplaires_disponibles).to.eql(1));",
+        "pm.collectionVariables.set('livreAId', j.id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"titre\": \"Clean Code\", \"auteur\": \"Robert C. Martin\", \"isbn\": \"978-A-{{$timestamp}}\", \"annee\": 2008, \"exemplaires_total\": 1, \"categorie_id\": {{categorieId}}}" },
+        "url": "{{baseUrl}}/livres"
+      }
+    },
+    {
+      "name": "04 - Créer livre B (3 exemplaires)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('livreBId', pm.response.json().id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"titre\": \"Design Patterns\", \"auteur\": \"Gamma et al.\", \"isbn\": \"978-B-{{$timestamp}}\", \"annee\": 1994, \"exemplaires_total\": 3, \"categorie_id\": {{categorieId}}}" },
+        "url": "{{baseUrl}}/livres"
+      }
+    },
+    {
+      "name": "05 - Créer livre C (3 exemplaires)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('livreCId', pm.response.json().id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"titre\": \"Refactoring\", \"auteur\": \"Martin Fowler\", \"isbn\": \"978-C-{{$timestamp}}\", \"annee\": 1999, \"exemplaires_total\": 3, \"categorie_id\": {{categorieId}}}" },
+        "url": "{{baseUrl}}/livres"
+      }
+    },
+    {
+      "name": "06 - Créer livre D (3 exemplaires)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('livreDId', pm.response.json().id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"titre\": \"The Pragmatic Programmer\", \"auteur\": \"Hunt & Thomas\", \"isbn\": \"978-D-{{$timestamp}}\", \"annee\": 1999, \"exemplaires_total\": 3, \"categorie_id\": {{categorieId}}}" },
+        "url": "{{baseUrl}}/livres"
+      }
+    },
+    {
+      "name": "07 - Livre avec catégorie inexistante (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 400', () => pm.response.to.have.status(400));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"titre\": \"X\", \"auteur\": \"Y\", \"isbn\": \"978-X-{{$timestamp}}\", \"annee\": 2000, \"exemplaires_total\": 1, \"categorie_id\": 999999}" },
+        "url": "{{baseUrl}}/livres"
+      }
+    },
+    {
+      "name": "08 - Créer membre étudiant",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "const j = pm.response.json();",
+        "pm.test('Type étudiant', () => pm.expect(j.type).to.eql('etudiant'));",
+        "pm.collectionVariables.set('etudiantId', j.id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"nom\": \"Rakoto Jean\", \"email\": \"etu{{$timestamp}}@univ.mg\", \"type\": \"etudiant\"}" },
+        "url": "{{baseUrl}}/membres"
+      }
+    },
+    {
+      "name": "09 - Créer membre enseignant",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "pm.collectionVariables.set('enseignantId', pm.response.json().id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"nom\": \"Pr. Rabe Marie\", \"email\": \"ens{{$timestamp}}@univ.mg\", \"type\": \"enseignant\"}" },
+        "url": "{{baseUrl}}/membres"
+      }
+    },
+    {
+      "name": "10 - Membre avec type invalide (400)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 400', () => pm.response.to.have.status(400));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"nom\": \"Test\", \"email\": \"t{{$timestamp}}@univ.mg\", \"type\": \"visiteur\"}" },
+        "url": "{{baseUrl}}/membres"
+      }
+    },
+    {
+      "name": "11 - Emprunt : étudiant emprunte le livre A (201)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "const j = pm.response.json();",
+        "pm.test('Emprunt en cours, sans retard', () => {",
+        "  pm.expect(j.statut).to.eql('en_cours');",
+        "  pm.expect(j.jours_retard).to.eql(0);",
+        "  pm.expect(j.date_retour_reelle).to.be.null;",
+        "});",
+        "pm.collectionVariables.set('empruntAId', j.id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{etudiantId}}, \"livre_id\": {{livreAId}}}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "12 - Livre A : 0 exemplaire disponible",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "pm.test('Disponibles = 0', () => pm.expect(pm.response.json().exemplaires_disponibles).to.eql(0));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/livres/{{livreAId}}" }
+    },
+    {
+      "name": "13 - Règle stock : emprunter livre A indisponible (409)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 409', () => pm.response.to.have.status(409));",
+        "pm.test('Message exemplaire', () => pm.expect(pm.response.json().erreur).to.include('exemplaire'));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{enseignantId}}, \"livre_id\": {{livreAId}}}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "14 - Étudiant emprunte le livre B (2e emprunt)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{etudiantId}}, \"livre_id\": {{livreBId}}}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "15 - Étudiant emprunte le livre C (3e emprunt)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{etudiantId}}, \"livre_id\": {{livreCId}}}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "16 - Règle quota : 4e emprunt étudiant refusé (409)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 409', () => pm.response.to.have.status(409));",
+        "pm.test('Message limite', () => pm.expect(pm.response.json().erreur).to.include('Limite'));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{etudiantId}}, \"livre_id\": {{livreDId}}}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "17 - Membre étudiant : 3 emprunts en cours / limite 3",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "pm.test('3 en cours, limite 3', () => {",
+        "  pm.expect(j.emprunts_en_cours).to.eql(3);",
+        "  pm.expect(j.limite).to.eql(3);",
+        "});"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/membres/{{etudiantId}}" }
+    },
+    {
+      "name": "18 - Emprunt inexistant : livre introuvable (404)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 404', () => pm.response.to.have.status(404));"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{enseignantId}}, \"livre_id\": 999999}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "19 - Règle suppression : supprimer livre A emprunté (409)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 409', () => pm.response.to.have.status(409));"
+      ] } }],
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/livres/{{livreAId}}" }
+    },
+    {
+      "name": "20 - Règle suppression : supprimer l'étudiant (409)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 409', () => pm.response.to.have.status(409));"
+      ] } }],
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/membres/{{etudiantId}}" }
+    },
+    {
+      "name": "21 - Enseignant emprunte le livre D avec retard simulé (201)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+        "const j = pm.response.json();",
+        "pm.test('Retard calculé automatiquement', () => pm.expect(j.jours_retard).to.be.above(0));",
+        "pm.test('Date prévue = 2020-01-15', () => pm.expect(j.date_retour_prevue).to.eql('2020-01-15'));",
+        "pm.collectionVariables.set('empruntRetardId', j.id);"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\"membre_id\": {{enseignantId}}, \"livre_id\": {{livreDId}}, \"date_emprunt\": \"2020-01-01\", \"duree_jours\": 14}" },
+        "url": "{{baseUrl}}/emprunts"
+      }
+    },
+    {
+      "name": "22 - Rapport : emprunts en retard",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "const id = Number(pm.collectionVariables.get('empruntRetardId'));",
+        "const e = j.find(x => x.id === id);",
+        "pm.test('L\\'emprunt en retard est listé', () => pm.expect(e).to.not.be.undefined);",
+        "pm.test('Nom du membre présent', () => pm.expect(e.membre_nom).to.eql('Pr. Rabe Marie'));",
+        "pm.test('jours_retard > 0', () => pm.expect(e.jours_retard).to.be.above(0));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/rapports/emprunts-en-retard" }
+    },
+    {
+      "name": "23 - Filtre emprunts statut=en_retard",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "pm.test('Tous en retard', () => pm.response.json().forEach(e => pm.expect(e.jours_retard).to.be.above(0)));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/emprunts?statut=en_retard" }
+    },
+    {
+      "name": "24 - Retour du livre A (200)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "pm.test('Emprunt retourné', () => {",
+        "  pm.expect(j.statut).to.eql('retourne');",
+        "  pm.expect(j.date_retour_reelle).to.be.a('string');",
+        "});"
+      ] } }],
+      "request": { "method": "POST", "url": "{{baseUrl}}/emprunts/{{empruntAId}}/retour" }
+    },
+    {
+      "name": "25 - Livre A : exemplaire de nouveau disponible",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "pm.test('Disponibles = 1', () => pm.expect(pm.response.json().exemplaires_disponibles).to.eql(1));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/livres/{{livreAId}}" }
+    },
+    {
+      "name": "26 - Double retour refusé (409)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 409', () => pm.response.to.have.status(409));"
+      ] } }],
+      "request": { "method": "POST", "url": "{{baseUrl}}/emprunts/{{empruntAId}}/retour" }
+    },
+    {
+      "name": "27 - Rapport : top 10 des livres les plus empruntés",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "pm.test('10 résultats maximum', () => pm.expect(j.length).to.be.at.most(10));",
+        "pm.test('Trié par nb_emprunts décroissant', () => {",
+        "  for (let i = 1; i < j.length; i++) pm.expect(j[i-1].nb_emprunts).to.be.at.least(j[i].nb_emprunts);",
+        "});"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/rapports/top-livres?limit=10" }
+    },
+    {
+      "name": "28 - Rapport : emprunts par catégorie",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "const c = j.find(x => x.categorie_id === Number(pm.collectionVariables.get('categorieId')));",
+        "pm.test('Catégorie de test présente', () => pm.expect(c).to.not.be.undefined);",
+        "pm.test('Au moins 4 emprunts (A, B, C, D)', () => pm.expect(c.nb_emprunts).to.be.at.least(4));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/rapports/emprunts-par-categorie" }
+    },
+    {
+      "name": "29 - Rapport : historique complet d'un membre",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+        "const j = pm.response.json();",
+        "pm.test('Membre correct', () => pm.expect(j.membre.id).to.eql(Number(pm.collectionVariables.get('etudiantId'))));",
+        "pm.test('3 emprunts dont 2 en cours', () => {",
+        "  pm.expect(j.total_emprunts).to.eql(3);",
+        "  pm.expect(j.en_cours).to.eql(2);",
+        "});",
+        "pm.test('Chaque ligne a titre et statut', () => j.emprunts.forEach(e => {",
+        "  pm.expect(e.livre_titre).to.be.a('string');",
+        "  pm.expect(e.statut).to.be.oneOf(['en_cours', 'retourne']);",
+        "}));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/membres/{{etudiantId}}/historique" }
+    },
+    {
+      "name": "30 - Historique d'un membre inexistant (404)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 404', () => pm.response.to.have.status(404));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/membres/999999/historique" }
+    },
+    {
+      "name": "31 - Supprimer le livre A après retour (204)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 204', () => pm.response.to.have.status(204));"
+      ] } }],
+      "request": { "method": "DELETE", "url": "{{baseUrl}}/livres/{{livreAId}}" }
+    },
+    {
+      "name": "32 - Livre A supprimé (404)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('Statut 404', () => pm.response.to.have.status(404));"
+      ] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/livres/{{livreAId}}" }
+    }
+  ]
+}

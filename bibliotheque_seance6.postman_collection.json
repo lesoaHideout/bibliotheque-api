@@ -1,0 +1,384 @@
+{
+  "info": {
+    "name": "API Bibliothèque - Séance 6 (OpenAI, Stripe, Webhooks)",
+    "description": "À exécuter dans l'ordre avec le Collection Runner. Nécessite OPENAI_API_KEY et les clés Stripe test dans le .env du serveur. La variable stripe_webhook_secret doit être égale à STRIPE_WEBHOOK_SECRET.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "stripe_webhook_secret", "value": "whsec_test_secret" }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "S00 - Register",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "pm.collectionVariables.set('userEmail', 'lecteur' + Date.now() + '@univ.mg');"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.test('Token présent', () => pm.expect(j.data.token).to.be.a('string'));",
+              "pm.test('Statut free au départ', () => pm.expect(j.data.user.subscription_status).to.eql('free'));",
+              "pm.collectionVariables.set('token', j.data.token);",
+              "pm.collectionVariables.set('userId', j.data.user.id);"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\": \"Test Lecteur\", \"email\": \"{{userEmail}}\", \"password\": \"secret123\"}" },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "S01 - Login",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Token présent', () => pm.expect(j.data.token).to.be.a('string'));",
+            "pm.collectionVariables.set('token', j.data.token);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\": \"{{userEmail}}\", \"password\": \"secret123\"}" },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "S02 - Créer catégorie",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('s6CatId', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"nom\": \"Programmation S6 {{$timestamp}}\"}" },
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "S03 - Créer livre 1 (Clean Code)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('s6Book1', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titre\": \"Clean Code\", \"auteur\": \"Robert C. Martin\", \"isbn\": \"S6-1-{{$timestamp}}\", \"annee\": 2008, \"exemplaires_total\": 3, \"categorie_id\": {{s6CatId}}}" },
+            "url": "{{baseUrl}}/livres"
+          }
+        },
+        {
+          "name": "S04 - Créer livre 2",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('s6Book2', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titre\": \"Effective Java\", \"auteur\": \"Joshua Bloch\", \"isbn\": \"S6-2-{{$timestamp}}\", \"annee\": 2018, \"exemplaires_total\": 3, \"categorie_id\": {{s6CatId}}}" },
+            "url": "{{baseUrl}}/livres"
+          }
+        },
+        {
+          "name": "S05 - Créer livre 3",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('s6Book3', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"titre\": \"Refactoring\", \"auteur\": \"Martin Fowler\", \"isbn\": \"S6-3-{{$timestamp}}\", \"annee\": 1999, \"exemplaires_total\": 3, \"categorie_id\": {{s6CatId}}}" },
+            "url": "{{baseUrl}}/livres"
+          }
+        },
+        {
+          "name": "S06 - Créer le membre (même email que l'utilisateur)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.collectionVariables.set('s6MembreId', pm.response.json().id);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"nom\": \"Test Lecteur\", \"email\": \"{{userEmail}}\", \"type\": \"etudiant\"}" },
+            "url": "{{baseUrl}}/membres"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books (OpenAI)",
+      "item": [
+        {
+          "name": "B01 - Generate Summary sans token (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 401', () => pm.response.to.have.status(401));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/v1/books/{{s6Book1}}/summary" }
+        },
+        {
+          "name": "B02 - Generate Summary livre inexistant (404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 404', () => pm.response.to.have.status(404));",
+            "pm.test('Message clair', () => pm.expect(pm.response.json().message).to.include('introuvable'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/books/999999/summary"
+          }
+        },
+        {
+          "name": "B03 - POST Generate Summary",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('summary non vide', () => pm.expect(d.summary).to.be.a('string').and.not.empty);",
+            "pm.test('generated_by présent', () => pm.expect(d.generated_by).to.be.a('string').and.not.empty);",
+            "pm.test('book_id correct', () => pm.expect(d.book_id).to.eql(Number(pm.collectionVariables.get('s6Book1'))));",
+            "pm.collectionVariables.set('s6Summary', d.summary);"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/books/{{s6Book1}}/summary"
+          }
+        },
+        {
+          "name": "B04 - POST Generate Summary (déjà existant, pas de nouvel appel)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('Message résumé existant', () => pm.expect(j.message).to.include('existant'));",
+            "pm.test('Même résumé', () => pm.expect(j.data.summary).to.eql(pm.collectionVariables.get('s6Summary')));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/books/{{s6Book1}}/summary"
+          }
+        },
+        {
+          "name": "B05 - GET Get Summary (sauvegardé en BDD)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "pm.test('Résumé persisté', () => pm.expect(pm.response.json().data.summary).to.eql(pm.collectionVariables.get('s6Summary')));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/books/{{s6Book1}}/summary" }
+        },
+        {
+          "name": "B06 - GET Summary sans résumé (404)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 404', () => pm.response.to.have.status(404));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/books/{{s6Book2}}/summary" }
+        },
+        {
+          "name": "B07 - POST Smart Search",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const j = pm.response.json();",
+            "pm.test('keywords est un tableau', () => pm.expect(j.keywords).to.be.an('array'));",
+            "pm.test('data est un tableau', () => pm.expect(j.data).to.be.an('array'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"query\": \"un livre sur les bonnes pratiques de programmation en Java\"}" },
+            "url": "{{baseUrl}}/api/v1/books/smart-search"
+          }
+        },
+        {
+          "name": "B08 - Smart Search sans query (422)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 422', () => pm.response.to.have.status(422));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/api/v1/books/smart-search"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Subscriptions",
+      "item": [
+        {
+          "name": "SUB01 - GET Subscription Status (free)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('subscription_status est free ou premium', () => pm.expect(d.subscription_status).to.be.oneOf(['free', 'premium']));",
+            "pm.test('free au départ, limite 2', () => { pm.expect(d.subscription_status).to.eql('free'); pm.expect(d.max_active_borrows).to.eql(2); });"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/subscriptions/status"
+          }
+        },
+        {
+          "name": "SUB02 - Status sans token (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 401', () => pm.response.to.have.status(401));"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/subscriptions/status" }
+        },
+        {
+          "name": "SUB03 - POST Create Payment Intent",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('client_secret présent', () => pm.expect(d.client_secret).to.be.a('string').and.not.empty);",
+            "pm.test('amount === 500', () => pm.expect(d.amount).to.eql(500));",
+            "pm.test('currency eur', () => pm.expect(d.currency).to.eql('eur'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/subscriptions/payment-intent"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Borrows - limite free (middleware)",
+      "item": [
+        {
+          "name": "L01 - Emprunt 1 avec token (201, free)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.test('payment_status free', () => pm.expect(pm.response.json().payment_status).to.eql('free'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\"membre_id\": {{s6MembreId}}, \"livre_id\": {{s6Book1}}}" },
+            "url": "{{baseUrl}}/emprunts"
+          }
+        },
+        {
+          "name": "L02 - Emprunt 2 avec token (201)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\"membre_id\": {{s6MembreId}}, \"livre_id\": {{s6Book2}}}" },
+            "url": "{{baseUrl}}/emprunts"
+          }
+        },
+        {
+          "name": "L03 - Emprunt 3 refusé en mode free (403)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 403', () => pm.response.to.have.status(403));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\"membre_id\": {{s6MembreId}}, \"livre_id\": {{s6Book3}}}" },
+            "url": "{{baseUrl}}/emprunts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "W01 - POST Simulate Stripe Webhook (signature valide)",
+          "event": [
+            { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+              "const secret = pm.environment.get('stripe_webhook_secret') || pm.collectionVariables.get('stripe_webhook_secret');",
+              "const payload = pm.variables.replaceIn(pm.request.body.raw);",
+              "const timestamp = Math.floor(Date.now() / 1000);",
+              "const signature = CryptoJS.HmacSHA256(timestamp + '.' + payload, secret).toString();",
+              "pm.request.headers.upsert({ key: 'Stripe-Signature', value: 't=' + timestamp + ',v1=' + signature });",
+              "console.log('Stripe-Signature calculée :', 't=' + timestamp + ',v1=' + signature);"
+            ] } },
+            { "listen": "test", "script": { "type": "text/javascript", "exec": [
+              "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+              "pm.test('received === true', () => pm.expect(pm.response.json().received).to.eql(true));"
+            ] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"id\":\"evt_test_1\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_test_1\",\"amount\":500,\"metadata\":{\"user_id\":\"{{userId}}\",\"plan\":\"premium\"}}}}" },
+            "url": "{{baseUrl}}/api/v1/webhooks/stripe"
+          }
+        },
+        {
+          "name": "W02 - Webhook sans signature (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 401', () => pm.response.to.have.status(401));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"metadata\":{\"user_id\":\"{{userId}}\",\"plan\":\"premium\"}}}}" },
+            "url": "{{baseUrl}}/api/v1/webhooks/stripe"
+          }
+        },
+        {
+          "name": "W03 - Webhook signature invalide (401)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 401', () => pm.response.to.have.status(401));",
+            "pm.test('success === false', () => pm.expect(pm.response.json().success).to.eql(false));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Stripe-Signature", "value": "t=1700000000,v1=deadbeef" }],
+            "body": { "mode": "raw", "raw": "{\"type\":\"payment_intent.succeeded\"}" },
+            "url": "{{baseUrl}}/api/v1/webhooks/stripe"
+          }
+        },
+        {
+          "name": "W04 - Statut devenu premium",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data;",
+            "pm.test('subscription_status === premium', () => pm.expect(d.subscription_status).to.eql('premium'));",
+            "pm.test('Plus de limite', () => pm.expect(d.max_active_borrows).to.be.null);"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/api/v1/subscriptions/status"
+          }
+        },
+        {
+          "name": "W05 - Emprunt 3 maintenant autorisé (premium, 201)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Statut 201', () => pm.response.to.have.status(201));",
+            "pm.test('payment_status paid', () => pm.expect(pm.response.json().payment_status).to.eql('paid'));"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\"membre_id\": {{s6MembreId}}, \"livre_id\": {{s6Book3}}}" },
+            "url": "{{baseUrl}}/emprunts"
+          }
+        }
+      ]
+    }
+  ]
+}

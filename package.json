@@ -1,0 +1,17 @@
+{
+  "name": "bibliotheque-api",
+  "version": "1.0.0",
+  "description": "API REST de gestion de bibliotheque universitaire",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.1.1",
+    "dotenv": "^18.0.10",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.3",
+    "stripe": "^23.2.0"
+  }
+}
